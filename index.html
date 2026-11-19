@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PilotData</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<style>
+:root{
+  --blue:#38B0E6;--blue2:#3991CE;--yellow:#F2C040;--graymod:#585858;
+  --ink:#111827;--text:#595A5A;--muted:#6b7280;--line:#e5e7eb;--soft:#f9fafb;--soft2:#f3f4f6;
+  --red:#EF3434;--redtrack:#fde3e3;--green:#16a34a;--greenbg:#ecfdf5;--greenline:#a7f3d0;
+  --bg:#ffffff;--sea:#1d4a5c;
+  --font:'Syne','Helvetica Neue',Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+.pdlogo{display:inline-flex;flex-direction:column;line-height:.95;font-weight:600;letter-spacing:.02em;color:#3d3f40;text-align:left}
+.pdlogo i{font-style:normal;color:#38B0E6}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- background building ---------- */
+.bgcity{position:fixed;right:0;bottom:0;width:min(46vw,640px);height:auto;pointer-events:none;z-index:0;opacity:.9}
+
+/* ---------- HOME ---------- */
+#home{position:relative;min-height:100%;display:flex;flex-direction:column;z-index:1;padding-inline:16px}
+.topbar{display:flex;align-items:center;gap:36px;padding:12px 60px;border-bottom:1px solid var(--line);margin-inline:-16px;flex-wrap:wrap;background:#fff}
+.who{display:flex;align-items:center;gap:12px}
+.avatar{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+.who b{display:block;font-size:14px;color:var(--ink)}
+.who span{font-size:12px;color:var(--text)}
+.toplink{display:flex;align-items:center;gap:10px;background:none;border:0;color:var(--text);font-size:13px;font-weight:500;padding:0}
+.orglogo{position:absolute;right:70px;top:90px;width:64px;height:64px}
+.welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-block:60px 90px;position:relative;z-index:2}
+.welcome h1{display:flex;align-items:center;gap:22px;margin:0 0 48px;font-weight:700;font-size:clamp(22px,3.2vw,34px);letter-spacing:.28em;color:#4b4c4c;text-wrap:balance;flex-wrap:wrap;justify-content:center}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,420px));gap:56px 80px}
+.tile{display:flex;gap:22px;align-items:flex-start;background:none;border:0;text-align:left;padding:6px;border-radius:12px;transition:transform .15s}
+.tile:hover{transform:translateY(-2px)}
+.tile:hover .pill{filter:brightness(1.05);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+.tile p{margin:12px 0 0;color:var(--text);font-size:13px;line-height:1.75}
+.pill{display:inline-block;color:#fff;font-weight:700;font-size:12px;letter-spacing:.06em;padding:6px 15px;border-radius:999px;text-transform:uppercase}
+.p-blue{background:var(--blue)}.p-yellow{background:var(--yellow)}.p-blue2{background:var(--blue2)}.p-gray{background:var(--graymod)}
+.homefoot{display:flex;align-items:center;gap:8px;padding:0 0 22px 60px;font-size:17px;font-weight:600;color:#333;position:relative;z-index:2;flex-wrap:wrap}
+@media (max-width:760px){.tiles{grid-template-columns:1fr;gap:28px}.topbar{padding:12px 0;gap:18px}.orglogo{display:none}.homefoot{padding-left:0}}
+
+/* ---------- APP SHELL ---------- */
+#app{position:relative;height:100%;display:flex;z-index:1}
+.side{width:66px;flex:none;border-right:1px solid var(--line);background:#fff;display:flex;flex-direction:column;transition:width .2s;z-index:5;overflow:hidden}
+.side.open{width:225px}
+.side .tog{height:44px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center}
+.side.open .tog{justify-content:space-between;padding:0 14px}
+.side .tog .org{display:none;align-items:center;gap:8px;text-align:left}
+.side.open .tog .org{display:flex}
+.side .tog .org b{font-size:12px;color:var(--ink);display:block}.side .tog .org small{font-size:10px;color:var(--text)}
+.nav{display:flex;flex-direction:column;gap:14px;padding:14px 0}
+.nav.bottom{margin-top:auto;border-top:1px solid var(--line)}
+.navbtn{position:relative;display:flex;align-items:center;gap:10px;border:0;background:none;padding:0 0 0 17px;height:34px;white-space:nowrap}
+.navbtn.active::before{content:"";position:absolute;left:10px;top:4px;bottom:4px;width:2px;background:var(--blue);border-radius:2px}
+.navbtn.active.y::before{background:var(--yellow)}.navbtn.active.g::before{background:var(--graymod)}
+.navbtn .pill{font-size:10.5px;padding:5px 12px;opacity:0;transition:opacity .15s}
+.side.open .navbtn .pill{opacity:1}
+.navbtn .pill.ghost{background:var(--soft2);color:#333}
+.navsec{font-size:9px;color:var(--muted);padding:0 12px;letter-spacing:.05em;display:none}
+.side.open .navsec{display:block}
+.sidefoot{display:none;font-size:11px;font-weight:600;padding:8px 12px 12px;white-space:nowrap}
+.side.open .sidefoot{display:block}
+.main{flex:1;min-width:0;padding:14px 26px 14px 22px;overflow:hidden;display:flex}
+.panel{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);display:flex;flex-direction:column;overflow:hidden}
+.phead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 22px 10px;flex-wrap:wrap}
+.phead .ttl{display:flex;align-items:center;gap:8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:500;color:#1f2937;white-space:nowrap}
+.btn:hover{background:var(--soft)}
+.btn.y{border-color:var(--yellow);color:var(--yellow)}
+.btn.y:hover{background:#fffbeb}
+.btn svg{width:14px;height:14px}
+.pbody{flex:1;min-height:0;overflow:auto;padding:0 22px 18px}
+.help{position:fixed;right:22px;bottom:22px;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--blue2));border:0;color:#fff;display:grid;place-items:center;box-shadow:0 6px 18px rgba(57,145,206,.4);z-index:20}
+.help svg{width:24px;height:24px}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:#fff;margin-bottom:12px}
+.search input{border:0;outline:0;flex:1;font:inherit;font-size:12px;color:var(--ink);background:none;min-width:0}
+.search svg{width:15px;height:15px;color:var(--muted);flex:none}
+.tabs{display:flex;justify-content:center;gap:4px;border-bottom:1px solid var(--line);margin:0 0 16px}
+.tabs button{border:0;background:none;padding:10px 16px;font-size:12px;font-weight:500;color:#374151;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--c,var(--blue));border-color:var(--c,var(--blue))}
+.select{display:flex;align-items:center;justify-content:space-between;width:100%;border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#fff;font-size:12px;color:#1f2937;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.select::after{content:"";width:6px;height:6px;border-right:1.5px solid #6b7280;border-bottom:1.5px solid #6b7280;transform:rotate(45deg) translateY(-2px)}
+label.lab{display:block;font-size:10.5px;color:#4b5563;margin:12px 0 5px}
+.card{border:1px solid var(--line);border-radius:10px;background:#fff}
+h3.sec{font-size:14px;font-weight:600;margin:0 0 12px;color:var(--ink)}
+.menu{position:absolute;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.1);padding:5px;z-index:30;min-width:120px}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:7px 9px;font-size:12px;border-radius:5px;color:#1f2937;text-align:left}
+.menu button.on{background:#eef7fd;color:var(--blue2)}
+.menu button:hover{background:var(--soft)}
+
+/* ---------- PATRIMOINE ---------- */
+.patri{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;min-height:520px}
+.map{position:relative;border-radius:10px;overflow:hidden;background:var(--sea);min-height:520px}
+.map svg.fr{position:absolute;inset:0;width:100%;height:100%}
+.zoom{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;background:#fff;border-radius:4px;box-shadow:0 1px 5px rgba(0,0,0,.4);overflow:hidden}
+.zoom button{width:28px;height:28px;border:0;background:#fff;font-size:17px;border-bottom:1px solid #ccc;color:#333}
+.layers svg{width:18px;height:18px}
+.layers{position:absolute;right:12px;top:12px;width:36px;height:36px;border-radius:8px;background:#fff;border:0;display:grid;place-items:center;box-shadow:0 1px 5px rgba(0,0,0,.3)}
+.attrib{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);font-size:10px;padding:1px 6px;color:#333}
+.marker{cursor:pointer}
+.filters{padding:6px 2px}
+.filters h4{font-size:12px;font-weight:600;margin:4px 0 8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.filtersfoot{margin-top:40px}
+.filtersfoot .btn{width:100%;justify-content:center;padding:9px}
+.rlist{border:1px solid var(--line);border-radius:10px;background:var(--soft2);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.rlist .info{font-size:10px;color:#333;padding:8px 10px;background:#fff;border-bottom:1px solid var(--line)}
+.rlist .info em{color:#c2410c;font-style:normal;margin-left:6px}
+.rlist .scroll{overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;max-height:560px}
+.rcard{background:#fff;border:1px solid transparent;border-radius:8px;padding:10px 10px 8px;text-align:left;width:100%}
+.rcard:hover{border-color:#bfe3f6}
+.rcard.sel{border-color:var(--blue);background:#eef6fb}
+.rcard .top{display:flex;align-items:center;gap:8px}
+.code{background:var(--blue);color:#fff;font-size:9.5px;padding:3px 6px;border-radius:3px;font-weight:600}
+.rcard .nm{font-size:13.5px;font-weight:600;color:var(--ink);text-transform:uppercase}
+.rcard .ad svg,.fiche .addr svg{width:9px;height:9px;vertical-align:-1px}
+.rcard .ad{font-size:9.5px;color:#374151;margin-top:5px;line-height:1.5;text-transform:uppercase}
+.rcard .nopos{display:inline-block;font-size:9px;color:#b45309;background:#fef3c7;padding:1px 6px;border-radius:9px;margin-top:3px}
+.bar{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.bar .tr{flex:1;height:7px;border-radius:4px;background:var(--redtrack);overflow:hidden}
+.bar .fl{height:100%;background:var(--red);border-radius:4px}
+.bar b{color:var(--red);font-size:11px;font-weight:700;min-width:30px;text-align:right}
+.fichewrap{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px}
+.fiche{padding:4px 6px}
+.fiche .fh{display:flex;gap:18px;justify-content:space-between;flex-wrap:wrap}
+.fiche h2 svg{width:18px;height:18px}
+.fiche h2{font-size:19px;font-weight:600;margin:6px 0 8px;display:flex;align-items:center;gap:8px;text-transform:uppercase}
+.fiche .addr{font-size:10.5px;color:#374151;line-height:1.7;text-transform:uppercase}
+.photo svg{width:18px;height:18px}
+.photo{width:180px;height:112px;border:1.5px dashed #d1d5db;border-radius:8px;display:grid;place-items:center;text-align:center;font-size:10px;color:var(--muted);align-self:flex-start}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.kvi{display:flex;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.kvi .ic{width:28px;height:28px;border-radius:50%;background:#eaf5fc;color:var(--blue);display:grid;place-items:center;flex:none}
+.kvi .ic svg{width:14px;height:14px}
+.kvi small{display:block;font-size:9.5px;color:var(--muted)}
+.kvi b{font-size:12px;font-weight:600;text-transform:uppercase}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+.stats3 div{background:#eaf4fb;border-radius:8px;text-align:center;padding:14px 6px}
+.stats3 b{display:block;color:var(--blue2);font-size:18px;font-weight:700}
+.stats3 small{font-size:10px;color:#374151}
+.secth{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;padding:14px 0;border-bottom:1px solid var(--line)}
+.secth span{display:flex;align-items:center;gap:6px}
+.secth svg{width:14px;height:14px;color:var(--blue)}
+.docs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.docs button{border:1.5px solid var(--blue);background:#fff;color:var(--blue2);border-radius:8px;padding:11px;font-size:12.5px;font-weight:500;display:flex;gap:8px;align-items:center;justify-content:center}
+.docs button:hover{background:#eef7fd}
+.docs button.full{grid-column:1/-1}
+.docs svg{width:14px;height:14px}
+@media (max-width:900px){.patri,.fichewrap{grid-template-columns:1fr}.map{min-height:380px}}
+
+/* ---------- COLLECTES ---------- */
+.coll{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px}
+.boxed{border:1px solid var(--line);border-radius:12px;padding:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.kpi{border:1px solid var(--line);border-radius:9px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.03);min-height:72px;position:relative}
+.kpi small{font-size:10px;color:#374151;display:block;max-width:70%;line-height:1.35}
+.kpi b{font-size:18px;font-weight:700;display:block;margin-top:10px}
+.kpi b.sm{font-size:12px}
+.kpi svg{position:absolute;right:10px;top:10px;width:22px;height:22px;color:var(--yellow)}
+.clist{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto;padding-right:4px}
+.citem{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.citem .t{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:5px;background:var(--soft2);color:#374151}
+.status.cours{background:#eff6ff;color:#1d4ed8}.status.ann{background:#fef2f2;color:#b91c1c}.status.att{background:#f3f4f6;color:#374151}.status.ok{background:var(--greenbg);color:var(--green)}
+.citem .meta{font-size:9.5px;color:#374151;margin-top:6px;display:flex;gap:10px;line-height:1.5}
+.rings{display:flex;gap:6px;flex:none;text-align:center}
+.ring{width:38px;height:38px}
+.rings small{display:block;font-size:8px;color:#374151;margin-top:2px}
+.cal .ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal .ch h3{margin:0;font-size:14px;font-weight:600}
+.seg{display:flex;background:var(--soft2);border-radius:7px;padding:2px}
+.seg button{border:0;background:none;font-size:10px;padding:4px 7px;border-radius:5px;color:#374151}
+.seg button.on{background:var(--yellow);color:#fff}
+.calbox{border:1px solid var(--line);border-radius:10px;padding:10px}
+.calnav{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;margin:4px 6px 10px}
+.calnav button{border:0;background:none;font-size:14px;color:#374151}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.grid7>*{min-width:0}
+.grid7 .dw{font-size:9.5px;color:#374151;padding:4px 0}
+.day{min-height:44px;font-size:9px;color:#374151;padding:2px 1px;border-radius:4px}
+.day.today{border:1.5px solid var(--yellow)}
+.day.today .dn{color:var(--yellow);font-weight:700}
+.ev{display:block;font-size:7px;border-radius:3px;padding:1px 2px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid}
+.ev.s{border-color:#22c55e;background:#f0fdf4}.ev.e{border-color:#ef4444;background:#fef2f2}
+.legend{display:flex;gap:16px;justify-content:center;font-size:9.5px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
+.legend i{display:inline-block;width:14px;height:9px;border-radius:2px;border:1px solid;margin-right:5px;vertical-align:-1px}
+.tbl{width:100%;border-collapse:collapse;font-size:11px}
+.tbl th{background:var(--soft);text-align:left;font-weight:500;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap;color:#1f2937}
+.tbl td{padding:7px 8px;border-bottom:1px solid #f1f2f4;white-space:nowrap}
+.tbl tr:hover td{background:#fafbfc}
+.tbl .x{color:#ef4444}.tbl .d{color:#c4c7cc}
+.tblwrap{overflow:auto;max-height:430px;border:1px solid var(--line);border-radius:10px}
+.pct{display:inline-block;font-size:9.5px;padding:2px 7px;border-radius:9px;background:#fee2e2;color:#dc2626}
+.toolbar{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px}
+.toolbar small{display:block;font-size:10px;color:#374151;margin-bottom:5px}
+.toolbar .btn{width:100%;justify-content:center}
+.pager{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#374151;padding:10px 4px;flex-wrap:wrap;gap:8px}
+@media (max-width:1000px){.coll{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.toolbar{grid-template-columns:1fr 1fr}}
+
+/* ---------- ANALYSES ---------- */
+.ana{display:grid;grid-template-columns:200px minmax(0,1fr);gap:22px}
+.tools .th{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;letter-spacing:.06em;color:#374151;padding:8px 0 16px}
+.tool{display:flex;gap:12px;border:1px solid var(--line);border-radius:10px;padding:14px 12px;background:#fff;text-align:left;width:100%;margin-bottom:8px}
+.tool:hover{border-color:var(--blue)}
+.tool svg{width:22px;height:22px;color:var(--blue2);flex:none;margin-top:10px}
+.tool b{font-size:13px;font-weight:600;display:block;margin-bottom:6px}
+.tool small{font-size:10px;color:#374151;line-height:1.55}
+.dash{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px}
+.dkpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+.dkpis .kpi svg{width:30px;height:30px;top:14px}
+.dkpis .kpi{min-height:74px}
+.gap-row{height:120px}
+@media (max-width:1000px){.ana,.dash{grid-template-columns:1fr}.gap-row{display:none}}
+
+/* ---------- MARKETPLACE ---------- */
+.apikey{display:flex;align-items:center;gap:12px;background:var(--soft2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:14px}
+.apikey .k{width:28px;height:28px;border-radius:6px;background:#fff;display:grid;place-items:center;border:1px solid var(--line)}
+.apikey small{font-size:9.5px;color:#4b5563;display:block}
+.apikey code{font-family:"Lucida Console",Monaco,monospace;font-size:11.5px}
+.active{margin-left:auto;font-size:10px;color:var(--green);background:var(--greenbg);border:1px solid var(--greenline);border-radius:9px;padding:2px 8px}
+.rights{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 10px}
+.right{border:1px solid var(--greenline);background:var(--greenbg);border-radius:8px;padding:12px}
+.right.no{border-color:var(--line);background:var(--soft)}
+.right .rh{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:10px}
+.right .rh span{font-size:9.5px;font-weight:500;color:var(--green)}
+.right.no .rh span{color:#9ca3af}
+.right small{font-size:10px;color:#374151}
+.mstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.mstats div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.mstats small{font-size:10px;color:#374151;display:block}
+.mstats b{font-size:20px;font-weight:700;display:block;margin-top:6px;letter-spacing:.03em}
+.mstats em{font-style:normal;font-size:9px;color:#6b7280}
+.chart{border:1px solid var(--line);border-radius:10px;padding:14px}
+.chart svg{width:100%;height:auto;display:block}
+.cons{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.conn{border:1px solid var(--line);border-radius:10px;padding:24px 14px;text-align:center;background:#fff}
+.conn:hover{box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.conn svg{width:26px;height:26px;color:#374151}
+.conn b{display:block;font-size:14px;font-weight:600;margin:12px 0 6px}
+.conn small{font-size:10px;color:#374151;line-height:1.55}
+.catbar{display:grid;grid-template-columns:1fr 1fr;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 10px 12px;margin-bottom:12px;align-items:end}
+@media (max-width:1000px){.rights,.cons{grid-template-columns:1fr 1fr}.mstats{grid-template-columns:1fr}}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.demo{font-size:10px;color:#6b7280;text-align:center;padding:6px 0 0}
+@media (max-width:640px){.main{padding:10px 16px 10px 10px}.side{width:52px}.navbtn{padding-left:10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- additions application ---------- */
+#login{position:relative;z-index:2;min-height:100%;display:grid;place-items:center;padding-inline:16px}
+.logbox{width:min(380px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:32px 28px;box-shadow:0 10px 40px rgba(17,24,39,.08)}
+.logbox h1{display:flex;align-items:center;gap:14px;font-size:18px;letter-spacing:.2em;color:#4b4c4c;margin:0 0 6px}
+.logbox p{font-size:12px;color:var(--muted);margin:0 0 18px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:11px;color:#4b5563}
+.field input,.field select,.field textarea{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink);width:100%}
+.field textarea{min-height:80px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--blue);outline-offset:0;border-color:transparent}
+.btnp{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:10px 14px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;font-weight:600;font-size:13px}
+.btnp:disabled{opacity:.6;cursor:wait}
+.btnp.y{background:var(--yellow)}
+.btn.danger{color:#b91c1c;border-color:#fecaca}
+.err{font-size:12px;color:#b91c1c;margin:8px 0 0;min-height:16px}
+.modal-bg{position:fixed;inset:0;background:rgba(17,24,39,.35);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:#fff;border-radius:14px;width:min(640px,100%);max-height:calc(100% - 32px);overflow:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 14px;font-size:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.grid2 .full{grid-column:1/-1}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+#lmap{position:absolute;inset:0;z-index:1}
+.leaflet-container{font-family:var(--font)}
+.cluster{background:#3aa0de;color:#fff;border:3px solid #fff;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.pinI{color:#3aa0de}
+.filters select{appearance:none;-webkit-appearance:none;cursor:pointer}
+.notes{width:100%;min-height:70px;font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:10px;resize:vertical}
+.photo img{width:100%;height:100%;object-fit:cover;border-radius:7px}
+.photo{padding:0;overflow:hidden;cursor:pointer;background:#fff}
+.drawer{position:fixed;left:76px;bottom:20px;width:min(340px,calc(100% - 92px));background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.15);z-index:40;padding:14px;max-height:60vh;overflow:auto}
+.drawer h4{margin:0 0 10px;font-size:13px;display:flex;justify-content:space-between}
+.notif{padding:9px 0;border-top:1px solid var(--line);font-size:12px}
+.notif.unread b::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--blue);margin-right:6px}
+.notif small{display:block;color:var(--muted);margin-top:3px}
+.badge{position:absolute;left:38px;top:0;background:#ef4444;color:#fff;border-radius:9px;font-size:9px;padding:1px 5px;font-weight:700}
+.tbl td.st button{border:0;background:none;padding:0;font:inherit;cursor:pointer}
+.chip{display:inline-block;font-size:9.5px;padding:2px 8px;border-radius:9px;font-weight:600}
+.chip.present{background:#dbeafe;color:#1d4ed8}.chip.hypothese{background:#fef3c7;color:#a16207}
+.tbl input.cf{width:100%;font:inherit;font-size:10px;border:1px solid var(--line);border-radius:5px;padding:3px 5px;margin-top:4px;font-weight:400}
+.empty{padding:30px;text-align:center;color:var(--muted);font-size:12px}
+.loading{position:fixed;inset:0;display:grid;place-items:center;z-index:70;background:rgba(255,255,255,.6)}
+.loading div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 26px;font-size:12px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+.citem .ctrl{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.citem select{font:inherit;font-size:10px;border:1px solid var(--line);border-radius:5px;padding:2px 4px}
+.linkbtn{border:0;background:none;color:var(--blue2);font-size:10px;padding:0;text-decoration:underline}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="hex" viewBox="0 0 72 80"><polygon points="36,2 70,21 70,59 36,78 2,59 2,21" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-patri" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="6.5" r="3.2"/><circle cx="7.5" cy="6.5" r="1"/><path d="M7.5 9.7v7.5l-1.4 1.1M7.5 13.5h-1.6M7.5 15.6h-1.2"/><path d="M11.5 15l5-4.4 5 4.4M13 13.8V20h7v-6.2"/><path d="M15.5 20v-2.6h2V20"/></symbol>
+    <symbol id="i-coll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="2.5" y="9" width="3" height="10" rx="1.5"/><rect x="8" y="5" width="3" height="8" rx="1.5"/><rect x="13.5" y="3" width="3" height="7" rx="1.5"/><circle cx="14" cy="15" r="4"/><path d="M17 18l3.5 3.5"/></symbol>
+    <symbol id="i-ana" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M5 15c2-8 4-8 6-2s4 6 6-4 3 0 4 1"/><path d="M5 9c2 7 5 7 7 1s4-6 5 0 2 4 4 3"/><path d="M5 18h15"/></symbol>
+    <symbol id="i-market" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h3l2.4 10h9.8l2-7H6.2"/><circle cx="9" cy="18.5" r="1.4"/><circle cx="17.5" cy="17.5" r="3.6"/><path d="M17.5 15.7v3.6M15.7 17.5h3.6"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l2 2.2 3-.4.9 2.9 2.7 1.4-1 2.8 1 2.8-2.7 1.4-.9 2.9-3-.4-2 2.2-2-2.2-3 .4-.9-2.9-2.7-1.4 1-2.8-1-2.8 2.7-1.4.9-2.9 3 .4z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.6 3-5.5 6-5.5s5.4 1.9 6 5.5"/><circle cx="16.5" cy="9" r="2.5"/><path d="M17 13.6c2.4.3 3.8 2 4.2 4.6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/><path d="M3 8.5c.4-1.8 1.3-3.3 2.6-4.5M21 8.5c-.4-1.8-1.3-3.3-2.6-4.5"/></symbol>
+    <symbol id="i-journal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 12h8M8 15h5"/></symbol>
+    <symbol id="i-in" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="currentColor"/><path d="M8 10.5V16M8 8v.01M11.5 16v-3.2c0-1.4.8-2.3 2-2.3s1.9.9 1.9 2.3V16M11.5 10.5V16" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c.8-3.8 3.6-6 7-6s6.2 2.2 7 6"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4L8 20H4v-4z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M12 11v6M9.5 14.5L12 17l2.5-2.5"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="4" rx="1"/><path d="M9 11h6M9 15h6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 3v5h5M4 13a8 8 0 0 0 14.3 4.9L20 16M20 21v-5h-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-build" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="13" rx="1"/><path d="M9 7V4h6v3M3 12h18M11 12v2h2v-2"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 11l9-7 9 7M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 18a9 9 0 1 1 16 0"/><path d="M12 14l4-4"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-hour" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 15v5h16v-5M12 4v11M8 8l4-4 4 4"/></symbol>
+    <symbol id="i-pie" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5M3 17.5l9 5 9-5"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M14.5 6.5a4.5 4.5 0 0 0 5.8 5.8L11 21.6a2.3 2.3 0 0 1-3.3-3.3l9.3-9.3a4.5 4.5 0 0 1-2.5-2.5z" transform="rotate(0)"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="16" cy="8" r="4"/><path d="M13 11l-9 9M7 17l2 2M9.5 14.5l2 2"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="6"/><path d="M8 7l1.5-1V12"/><path d="M15.2 9.6A6 6 0 1 1 9.6 15.2"/></symbol>
+    <symbol id="i-sign" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M13 3H6v18h12v-7"/><path d="M20 5l-7 7-1 3 3-1 7-7z"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 9a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="19.5" r=".8" fill="currentColor"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12l4 4 10-10"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.7M12 17v.01"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></symbol>
+  </defs>
+</svg>
+<svg class="bgcity" viewBox="0 0 640 420" aria-hidden="true">
+  <defs>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="fadeT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <pattern id="win" width="14" height="16" patternUnits="userSpaceOnUse"><rect width="14" height="16" fill="#d9dde2"/><rect x="3" y="3" width="8" height="9" fill="#a9b6c3"/></pattern>
+    <pattern id="win2" width="12" height="14" patternUnits="userSpaceOnUse"><rect width="12" height="14" fill="#efe5d4"/><rect x="3" y="3" width="6" height="7" fill="#b9a88c"/></pattern>
+  </defs>
+  <rect x="300" y="170" width="120" height="250" fill="url(#win2)"/>
+  <rect x="300" y="160" width="120" height="12" fill="#c9b99c"/>
+  <rect x="440" y="60" width="200" height="360" fill="url(#win)"/>
+  <rect x="440" y="50" width="200" height="12" fill="#b6c0ca"/>
+  <rect x="520" y="60" width="16" height="360" fill="#c7cfd8"/>
+  <path d="M120 420 L300 330 L640 330 L640 420Z" fill="#c9d4c2"/>
+  <path d="M260 420 L380 360 L560 380 L500 420Z" fill="#b95b4a" opacity=".75"/>
+  <path d="M390 400 L470 365 L560 372 L520 405Z" fill="#6a9c5b" opacity=".8"/>
+  <rect x="200" y="330" width="60" height="50" fill="#dcd6cc"/><rect x="200" y="322" width="60" height="9" fill="#b9b2a4"/>
+  <rect width="640" height="420" fill="url(#fade)"/>
+  <rect width="640" height="420" fill="url(#fadeT)"/>
+</svg>
+<div id="login" hidden></div>
+<div id="home" hidden></div>
+<div id="app" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+/* =====================================================================
+   PilotData — application front (HTML + Supabase)
+   ===================================================================== */
+const SUPABASE_URL = 'https://pjzpsyikoliciaestzpf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_elRBL7-AtKrq82yW5QgzzQ_ZQTM_XQx'; // clé publique (publishable) : protégée par les règles RLS
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------------- constantes ---------------- */
+const MODS={
+  patrimoine:{label:'Patrimoine',pill:'p-blue',color:'#38B0E6',icon:'i-patri',desc:"Visualisez et gérez l'ensemble de votre patrimoine immobilier, résidences et équipements."},
+  collectes:{label:'Collectes',pill:'p-yellow',color:'#F2C040',icon:'i-coll',desc:"Planifiez, suivez et pilotez vos collectes de données sur le terrain."},
+  analyses:{label:'Analyses',pill:'p-blue2',color:'#3991CE',icon:'i-ana',desc:"Analysez vos données avec des outils de requêtes et de visualisation."},
+  marketplace:{label:'Marketplace',pill:'p-gray',color:'#585858',icon:'i-market',desc:"Retrouvez des modules, services et offres partenaires pour enrichir votre pilotage."}
+};
+const STAT={attente:['En attente de validation','i-hour','att'],en_cours:['En cours','i-clock','cours'],validee:['Validée','i-check','ok'],annulee:['Annulée','i-clock','ann']};
+const RES_FIELDS=[
+  ['code','Code',1],['nom','Nom',1],['adresse','Adresse',0,'full'],['code_postal','Code postal'],['ville','Ville'],
+  ['departement','Département'],['epci','EPCI'],['secteur','Secteur'],['agence','Agence'],['responsable','Responsable'],
+  ['gestionnaire','Gestionnaire de proximité'],['tel_gestionnaire','Portable du gestionnaire'],['nature','Nature'],
+  ['nb_batiments','Nb de bâtiments',0,'','number'],['nb_lots','Nb de lots',0,'','number'],
+  ['latitude','Latitude',0,'','number'],['longitude','Longitude',0,'','number']
+];
+const COMPLETUDE=['adresse','code_postal','ville','departement','epci','secteur','agence','responsable','gestionnaire','tel_gestionnaire','nature','nb_batiments','nb_lots','latitude','photo_url'];
+const FILTERS=[['departement','Département','Tous'],['epci','EPCI','Tous'],['ville','Ville','Toutes'],['secteur','Secteur','Tous'],['agence','Agence','Toutes'],['responsable','Responsable','Tous'],['nature','Nature de résidence','Toutes']];
+const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+/* ---------------- état ---------------- */
+const D={res:[],coll:[],contrats:[],notifs:[],cle:null,appels:[],conns:[],etat:[]};
+const today=new Date();today.setHours(0,0,0,0);
+const state={user:null,mod:'patrimoine',side:false,pView:'carte',sel:null,q:'',f:{},
+  cTab:'terrain',cf:'',calY:today.getFullYear(),calM:today.getMonth(),
+  eq:{page:0,size:100,q:'',statut:'',rows:[],count:0},
+  aView:'dash',aTab:'res',cfil:{},mTab:'api',cat:'',notifOpen:false};
+
+/* ---------------- helpers ---------------- */
+const $=s=>document.querySelector(s);
+const ic=(id,cls='')=>`<svg class="${cls}" width="14" height="14" aria-hidden="true"><use href="#${id}"/></svg>`;
+const hexIcon=(icon,color,w=72,h=80,iw=30)=>`<span style="position:relative;display:inline-block;width:${w}px;height:${h}px;color:${color};flex:none"><svg width="${w}" height="${h}" style="position:absolute;inset:0"><use href="#hex"/></svg><svg width="${iw}" height="${iw}" style="position:absolute;left:${(w-iw)/2}px;top:${(h-iw)/2}px"><use href="#${icon}"/></svg></span>`;
+const esc=s=>s==null?'':String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtD=d=>d?new Date(d+'T00:00:00').toLocaleDateString('fr-FR'):'—';
+const fmtLong=d=>d?new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'—';
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400)}
+function fail(e,ctx){console.error(ctx,e);toast((ctx?ctx+' : ':'')+(e?.message||e))}
+function loading(on,txt='Chargement en cours…'){let l=$('#loading');if(on){if(!l){l=document.createElement('div');l.id='loading';l.className='loading';document.body.appendChild(l)}l.innerHTML=`<div>${txt}</div>`}else if(l)l.remove()}
+const completude=r=>Math.round(COMPLETUDE.filter(k=>r[k]!==null&&r[k]!==''&&r[k]!==undefined).length/COMPLETUDE.length*100);
+const initials=e=>(e||'?').split('@')[0].split(/[._-]/).map(x=>x[0]).join('').slice(0,2).toUpperCase();
+const logoPD=(h=48)=>`<span class="pdlogo" style="font-size:${h*0.46}px" aria-label="PilotData"><span>P<i>/</i>LOT</span><span>D<i>Λ</i>TA</span></span>`;
+const logoInline=`<span style="display:inline-flex;align-items:baseline;gap:1px;font-weight:700;letter-spacing:.02em">P<span style="color:#38B0E6">/</span>LOT D<span style="color:#38B0E6">Λ</span>TA</span>`;
+const logoBimer=`<span style="display:inline-flex;align-items:center;gap:3px;font-weight:800;color:#555"><svg width="22" height="18" viewBox="0 0 22 18"><rect x="1" y="3" width="8" height="12" rx="1" fill="#9aa3ad"/><rect x="6" y="1" width="8" height="16" rx="1" fill="#6b7580"/></svg><span style="font-size:18px">B<span style="color:#38B0E6">IM</span></span><span style="display:flex;flex-direction:column;font-size:7px;line-height:1;color:#38B0E6;font-weight:600">ER<br>services</span></span>`;
+function csv(name,rows,cols){
+  const q=v=>{v=v==null?'':String(v);return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const txt='﻿'+cols.map(c=>q(c[1])).join(';')+'\n'+rows.map(r=>cols.map(c=>q(typeof c[0]==='function'?c[0](r):r[c[0]])).join(';')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));a.download=name;document.body.appendChild(a);a.click();a.remove();
+  toast('Export généré : '+name);
+}
+
+/* ---------------- données ---------------- */
+async function loadAll(){
+  loading(true);
+  try{
+    const [r,c,ct,n,k,a,cn,e]=await Promise.all([
+      db.from('residences').select('*').order('code'),
+      db.from('collectes').select('*').order('date_debut',{ascending:false}),
+      db.from('contrats').select('*'),
+      db.from('notifications').select('*').order('created_at',{ascending:false}),
+      db.from('api_cle').select('*').limit(1),
+      db.from('api_appels').select('*').order('jour'),
+      db.from('connecteurs').select('*').order('titre'),
+      db.from('v_etat_collecte').select('*').order('nom')
+    ]);
+    for(const x of [r,c,ct,n,k,a,cn,e]) if(x.error) throw x.error;
+    D.res=r.data;D.coll=c.data;D.contrats=ct.data;D.notifs=n.data;D.cle=k.data[0]||null;D.appels=a.data;D.conns=cn.data;D.etat=e.data;
+  }catch(err){fail(err,'Lecture de la base');}
+  loading(false);
+}
+async function loadEquip(){
+  const E=state.eq;
+  let q=db.from('v_equipements').select('*',{count:'exact'}).order('res_code').order('type_ligne',{ascending:false}).order('code_objet');
+  if(E.q) q=q.or(`code_objet.ilike.%${E.q}%,libelle.ilike.%${E.q}%,res_code.ilike.%${E.q}%,res_nom.ilike.%${E.q}%`);
+  if(E.statut) q=q.eq('statut',E.statut).eq('type_ligne','Équipement');
+  const {data,count,error}=await q.range(E.page*E.size,E.page*E.size+E.size-1);
+  if(error) return fail(error,'Équipements');
+  E.rows=data;E.count=count||0;
+}
+
+/* ---------------- authentification ---------------- */
+function renderLogin(){
+  $('#home').hidden=true;$('#app').hidden=true;$('#login').hidden=false;
+  $('#login').innerHTML=`<form class="logbox" id="lf">
+    <h1>CONNEXION ${logoPD(40)}</h1><p>Accédez à votre espace de pilotage patrimonial.</p>
+    <div class="field"><label for="le">Adresse e-mail</label><input id="le" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lp">Mot de passe</label><input id="lp" type="password" autocomplete="current-password" required></div>
+    <button class="btnp" style="width:100%" id="lb">Se connecter</button>
+    <p class="err" id="lerr"></p>
+    <button type="button" class="linkbtn" id="lforgot">Mot de passe oublié ?</button>
+  </form>`;
+  $('#lf').onsubmit=async ev=>{
+    ev.preventDefault();$('#lb').disabled=true;$('#lerr').textContent='';
+    const {error}=await db.auth.signInWithPassword({email:$('#le').value.trim(),password:$('#lp').value});
+    $('#lb').disabled=false;
+    if(error) $('#lerr').textContent=error.message==='Invalid login credentials'?'E-mail ou mot de passe incorrect.':error.message;
+  };
+  $('#lforgot').onclick=async()=>{
+    const email=$('#le').value.trim();if(!email){$('#lerr').textContent='Saisissez d’abord votre e-mail.';return}
+    const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+    $('#lerr').textContent=error?error.message:'Un lien de réinitialisation vous a été envoyé.';
+  };
+}
+async function logout(){await db.auth.signOut()}
+async function startSession(user){
+  state.user=user;$('#login').hidden=true;$('#login').innerHTML='';
+  await loadAll();route();
+}
+
+/* ---------------- accueil ---------------- */
+const unread=()=>D.notifs.filter(n=>!n.lu).length;
+function renderHome(){
+  const u=state.user;
+  $('#home').innerHTML=`
+  <div class="topbar">
+    <div class="who"><div class="avatar">${initials(u.email)}</div><div><b>${esc(u.user_metadata?.nom||u.email.split('@')[0])}</b><span>${esc(u.email)}</span></div></div>
+    <button class="toplink" onclick="openAccount()">${hexIcon('i-user','#333',38,42,18)}Mon compte</button>
+    <button class="toplink" onclick="toggleNotifs()">${hexIcon('i-bell','#333',38,42,18)}Notifications${unread()?` (${unread()})`:''}</button>
+  </div>
+  <div class="welcome">
+    <h1>BIENVENUE SUR ${logoPD(52)}</h1>
+    <div class="tiles">
+      ${Object.entries(MODS).map(([k,m])=>`
+      <button class="tile" onclick="go('${k}')">${hexIcon(m.icon,m.color)}
+        <span><span class="pill ${m.pill}">${m.label}</span><p>${m.desc}</p></span></button>`).join('')}
+    </div>
+  </div>
+  <div class="homefoot">${logoInline}<span style="font-weight:500">est une solution de</span>${logoBimer}</div>`;
+}
+
+/* ---------------- coquille ---------------- */
+function shell(content){
+  const nb=k=>{const m=MODS[k];const cls=k==='collectes'?' y':k==='marketplace'?' g':'';return `<button class="navbtn${state.mod===k?' active'+cls:''}" onclick="go('${k}')" aria-label="${m.label}" title="${m.label}">${hexIcon(m.icon,m.color,30,34,14)}<span class="pill ${m.pill}">${m.label}</span></button>`};
+  const u=state.user;
+  return `
+  <aside class="side ${state.side?'open':''}">
+    <button class="tog" onclick="state.side=!state.side;render()" aria-label="Menu">
+      <span class="org"><span class="avatar" style="width:24px;height:24px;font-size:9px;border-radius:6px">${initials(u.email)}</span><span><b>${esc(u.email.split('@')[0])}</b><small>PilotData</small></span></span>
+      <span>${state.side?'‹':'›'}</span></button>
+    <nav class="nav">
+      ${['patrimoine','collectes','analyses','marketplace'].map(nb).join('')}
+      <div class="navsec">OUTILS DSI</div>
+      <button class="navbtn" title="Paramétrage" onclick="toast('Paramétrage : module à venir')">${hexIcon('i-gear','#38B0E6',30,34,14)}<span class="pill p-blue">Paramétrage</span></button>
+      <button class="navbtn" title="Utilisateurs" onclick="toast('Les utilisateurs se gèrent dans Supabase > Authentication')">${hexIcon('i-users','#555',30,34,14)}<span class="pill p-gray">Utilisateurs</span></button>
+    </nav>
+    <nav class="nav bottom">
+      <button class="navbtn" title="Notifications" onclick="toggleNotifs()">${hexIcon('i-bell','#333',30,34,14)}${unread()?`<span class="badge">${unread()}</span>`:''}<span class="pill ghost">Notifications</span></button>
+      <button class="navbtn" title="Accueil" onclick="go('accueil')">${hexIcon('i-home','#333',30,34,14)}<span class="pill ghost">Accueil</span></button>
+      <button class="navbtn" title="Mon compte" onclick="openAccount()">${hexIcon('i-user','#333',30,34,14)}<span class="pill ghost">Mon compte</span></button>
+    </nav>
+    <div class="sidefoot">${logoInline} est une solution de BIMer</div>
+  </aside>
+  <main class="main"><section class="panel">${content}</section></main>
+  <button class="help" aria-label="Aide" onclick="toast('Besoin d’aide ? Contactez votre administrateur PilotData.')">${ic('i-help')}</button>`;
+}
+function head(k,actions=''){const m=MODS[k];return `<div class="phead"><div class="ttl">${hexIcon(m.icon,m.color,44,50,20)}<span class="pill ${m.pill}" style="font-size:11.5px;padding:6px 14px">${m.label}</span></div><div class="actions">${actions}</div></div>`}
+
+/* ---------------- modale générique ---------------- */
+function modal(title,fieldsHTML,onSave,{saveLabel='Enregistrer',extra=''}={}){
+  closeModal();
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='mbg';
+  bg.innerHTML=`<form class="modal" id="mform"><h3>${title}</h3>${fieldsHTML}<p class="err" id="merr"></p>
+    <div class="mfoot">${extra}<button type="button" class="btn" onclick="closeModal()">Annuler</button><button class="btnp" id="msave">${saveLabel}</button></div></form>`;
+  document.body.appendChild(bg);
+  bg.addEventListener('mousedown',e=>{if(e.target===bg)closeModal()});
+  $('#mform').onsubmit=async e=>{e.preventDefault();$('#msave').disabled=true;
+    try{await onSave(new FormData($('#mform')));closeModal()}catch(err){$('#merr').textContent=err.message||err;$('#msave').disabled=false}};
+  const f=bg.querySelector('input,select,textarea');if(f)f.focus();
+}
+function closeModal(){const m=$('#mbg');if(m)m.remove()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+/* ---------------- compte & notifications ---------------- */
+function openAccount(){
+  const u=state.user;
+  modal('Mon compte',`<div class="field"><label>E-mail</label><input value="${esc(u.email)}" disabled></div>
+    <div class="field"><label for="anom">Nom affiché</label><input id="anom" name="nom" value="${esc(u.user_metadata?.nom||'')}"></div>
+    <div class="field"><label for="apw">Nouveau mot de passe (laisser vide pour ne pas changer)</label><input id="apw" name="pw" type="password" minlength="8" autocomplete="new-password"></div>`,
+  async fd=>{
+    const upd={data:{nom:fd.get('nom')}};if(fd.get('pw'))upd.password=fd.get('pw');
+    const {data,error}=await db.auth.updateUser(upd);if(error)throw error;state.user=data.user;toast('Compte mis à jour');render();
+  },{extra:`<button type="button" class="btn danger" onclick="logout()" style="margin-right:auto">Se déconnecter</button>`});
+}
+function toggleNotifs(){
+  const old=$('#drawer');if(old){old.remove();return}
+  const d=document.createElement('div');d.id='drawer';d.className='drawer';
+  d.innerHTML=`<h4>Notifications <button class="linkbtn" onclick="markAllRead()">Tout marquer comme lu</button></h4>${D.notifs.length?D.notifs.map(n=>`<div class="notif ${n.lu?'':'unread'}"><b>${esc(n.titre)}</b><div>${esc(n.message)}</div><small>${fmtLong(n.created_at)}</small></div>`).join(''):'<div class="empty">Aucune notification</div>'}`;
+  document.body.appendChild(d);
+}
+async function markAllRead(){
+  const ids=D.notifs.filter(n=>!n.lu).map(n=>n.id);if(!ids.length)return;
+  const {error}=await db.from('notifications').update({lu:true}).in('id',ids);if(error)return fail(error);
+  D.notifs.forEach(n=>n.lu=true);$('#drawer')?.remove();render();
+}
+
+/* =====================================================================
+   PATRIMOINE
+   ===================================================================== */
+function filteredRes(){
+  const q=state.q.toLowerCase().trim();
+  return D.res.filter(r=>{
+    if(q&&!([r.nom,r.code,r.adresse,r.ville,r.code_postal].join(' ').toLowerCase().includes(q)))return false;
+    for(const [k,v] of Object.entries(state.f)) if(v&&String(r[k]??'')!==v) return false;
+    return true;
+  });
+}
+function filtersHTML(){
+  const opts=k=>[...new Set(D.res.map(r=>r[k]).filter(v=>v!==null&&v!==''))].sort((a,b)=>String(a).localeCompare(String(b),'fr'));
+  return `<div class="filters"><h4>Filtres</h4>${FILTERS.map(([k,l,all])=>`<label class="lab" for="f_${k}">${l}</label>
+    <select class="select" id="f_${k}" onchange="state.f['${k}']=this.value;state.sel=null;render()"><option value="">${all}</option>${opts(k).map(v=>`<option ${state.f[k]===String(v)?'selected':''}>${esc(v)}</option>`).join('')}</select>`).join('')}
+  <div class="filtersfoot"><button class="btn" onclick="state.f={};state.q='';render()">${ic('i-reset')} Réinitialiser</button></div></div>`;
+}
+function resList(list){
+  const nogps=list.filter(r=>r.latitude==null).length;
+  return `<div class="rlist"><div class="info"><b class="num">${list.length}</b> résidences${nogps?`<em>dont ${nogps} sans GPS : utilisez cette liste pour ouvrir leur fiche.</em>`:''}</div>
+  <div class="scroll">${list.length?list.map(r=>{const p=completude(r);return `<button class="rcard ${state.sel===r.id?'sel':''}" onclick="openRes('${r.id}')">
+    <div class="top"><span class="code num">${esc(r.code)}</span><span class="nm">${esc(r.nom)}</span></div>
+    <div class="ad">${ic('i-pin')} ${esc(r.adresse||'Non renseignée')}<br>${esc(r.ville||'Non renseigné')} · ${esc(r.departement||'')}${r.latitude==null?'<br><span class="nopos">Sans position</span>':''}</div>
+    <div class="bar"><div class="tr"><div class="fl" style="width:${p}%"></div></div><b class="num">${p}%</b></div></button>`}).join(''):'<div class="empty">Aucune résidence ne correspond.</div>'}</div></div>`;
+}
+function fiche(r){
+  const kv=(icn,l,v)=>`<div class="kvi"><span class="ic">${ic(icn)}</span><div><small>${l}</small><b>${esc(v||'Non renseigné')}</b></div></div>`;
+  const p=completude(r);
+  const doc=(i,l,cls='')=>`<button class="${cls}" onclick="toast('${l} : module à venir')">${ic(i)} ${l}</button>`;
+  return `<div class="fiche">
+    <div class="fh"><div><h2>${ic('i-doc')}<span>${esc(r.nom)}</span></h2><div class="addr">${ic('i-pin')} ${esc(r.adresse||'')}<br>${esc(r.code_postal||'')} ${esc(r.ville||'')}</div>
+      <div class="actions" style="margin-top:10px"><button class="btn" onclick="editRes('${r.id}')">${ic('i-pen')} Modifier</button><button class="btn danger" onclick="deleteRes('${r.id}')">Supprimer</button></div></div>
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <label class="photo" title="Ajouter / remplacer la photo">${r.photo_url?`<img src="${esc(r.photo_url)}" alt="Photo de ${esc(r.nom)}">`:`<span>${ic('i-camera')}<br>Ajouter une photo</span>`}<input type="file" accept="image/*" hidden onchange="uploadPhoto('${r.id}',this.files[0])"></label>
+      <button class="btn" style="border-radius:50%;width:30px;height:30px;justify-content:center;padding:0" aria-label="Fermer" onclick="state.sel=null;render()">✕</button></div></div>
+    <div class="secth" style="margin-top:14px"><span>${ic('i-info')} Informations clés</span></div>
+    ${kv('i-clock','Dernière modification',fmtLong(r.updated_at))}
+    <div class="kv">${kv('i-build','Agence',r.agence)}${kv('i-pin','Secteur',r.secteur)}${kv('i-user','Gestionnaire de proximité',r.gestionnaire)}${kv('i-phone','Portable du gestionnaire',r.tel_gestionnaire)}</div>
+    <div class="stats3"><div><b class="num">${r.nb_batiments??'—'}</b><small>Bâtiments</small></div><div><b class="num">${r.nb_lots??'—'}</b><small>Lots</small></div><div><b>${esc(r.nature||'—')}</b><small>Nature</small></div></div>
+    <div style="font-size:12px;font-weight:600;display:flex;gap:6px;align-items:center">${ic('i-list')} Complétude</div>
+    <div class="bar" style="border:0"><div class="tr"><div class="fl" style="width:${p}%"></div></div><b class="num">${p}%</b></div>
+    <div class="secth" style="margin-top:10px"><span>${ic('i-pen')} Notes</span></div>
+    <textarea class="notes" id="notes" placeholder="Ajouter une note sur cette résidence…">${esc(r.notes||'')}</textarea>
+    <div style="text-align:right;margin-top:6px"><button class="btn" onclick="saveNotes('${r.id}')">Enregistrer la note</button></div>
+    <div class="docs">
+      <button class="full" onclick="state.mod='collectes';state.cTab='data';state.eq.q='${esc(r.code)}';state.eq.page=0;state.eq.statut='';refreshEq(false).then(()=>go('collectes'))">${ic('i-eye')} Codification spatiale (équipements/data)</button>
+      ${doc('i-doc','Diagnostics')}${doc('i-pin','Cadastre')}${doc('i-shield','Sécurité / Plans 2D')}${doc('i-wrench','Carnet d’entretien')}${doc('i-cube','Maquette BIM','full')}
+    </div></div>`;
+}
+function openRes(id){state.sel=id;state.mod='patrimoine';if(location.hash!=='#patrimoine')history.replaceState(null,'','#patrimoine');render()}
+function viewPatrimoine(){
+  const sel=D.res.find(r=>r.id===state.sel);
+  const list=filteredRes();
+  const nf=Object.values(state.f).filter(Boolean).length;
+  const acts=`<span style="position:relative"><button class="btn" onclick="toggleVue(event)">${ic('i-eye')} Vue</button></span>
+    ${sel?`<button class="btn y" onclick="newCollecte()">${ic('i-clip')} Collecter</button>`:''}
+    <button class="btn y" onclick="editRes()">${ic('i-pen')} Enrichir le patrimoine</button>
+    <button class="btn" onclick="exportRes()">${ic('i-file')} Exporter</button>`;
+  let body;
+  if(sel){
+    body=`<div class="search" style="justify-content:space-between;font-size:12px"><span><b style="font-weight:600">Filtres</b> <span class="status cours" style="margin-left:6px">${nf} actif${nf>1?'s':''}</span></span></div>
+    <div class="fichewrap">${resList(list)}${fiche(sel)}</div>`;
+  } else if(state.pView==='liste'){
+    body=`<div class="patri">${resList(list)}${filtersHTML()}</div>`;
+  } else {
+    body=`<div class="patri"><div class="map"><div id="lmap"></div></div>${filtersHTML()}</div>`;
+  }
+  return head('patrimoine',acts)+`<div class="pbody">
+    <div class="search" style="margin-top:14px">${ic('i-search')}<input id="q" placeholder="Rechercher une résidence (nom, code, adresse, ville)…" value="${esc(state.q)}" oninput="state.q=this.value;if(state.pView==='carte')state.pView='liste';state.sel=null;renderKeep()"></div>
+    ${body}</div>`;
+}
+let map=null;
+function mountMap(){
+  if(map){map.remove();map=null}
+  const el=$('#lmap');if(!el||!window.L)return;
+  map=L.map(el,{zoomControl:true}).setView([46.6,2.4],6);
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri',maxZoom:19});
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});
+  sat.addTo(map);L.control.layers({'Satellite':sat,'Plan':osm},null,{position:'topright'}).addTo(map);
+  const icon=L.divIcon({className:'pinI',html:'<svg width="26" height="34" viewBox="-13 -34 26 34"><path d="M0 0c-9-12-12-15-12-21a12 12 0 0 1 24 0c0 6-3 9-12 21z" fill="#3aa0de" stroke="#fff" stroke-width="2"/><circle cy="-21" r="4.5" fill="#fff"/></svg>',iconSize:[26,34],iconAnchor:[13,34]});
+  const group=L.markerClusterGroup?L.markerClusterGroup({iconCreateFunction:c=>L.divIcon({html:`<div class="cluster" style="width:42px;height:42px">${c.getChildCount()}</div>`,className:'',iconSize:[42,42]})}):L.layerGroup();
+  const pts=[];
+  filteredRes().filter(r=>r.latitude!=null&&r.longitude!=null).forEach(r=>{
+    const m=L.marker([r.latitude,r.longitude],{icon,title:r.nom}).on('click',()=>openRes(r.id));
+    m.bindTooltip(`${esc(r.code)} — ${esc(r.nom)}`);group.addLayer(m);pts.push([r.latitude,r.longitude]);
+  });
+  group.addTo(map);
+  if(pts.length)map.fitBounds(pts,{padding:[40,40],maxZoom:13});
+}
+function toggleVue(e){
+  e.stopPropagation();const old=document.querySelector('.menu');if(old){old.remove();return}
+  const m=document.createElement('div');m.className='menu';m.style.top='34px';m.style.right='0';
+  m.innerHTML=`<button class="${state.pView==='carte'?'on':''}" onclick="state.pView='carte';state.sel=null;render()">${ic('i-map')}<span>Carte</span></button><button class="${state.pView==='liste'?'on':''}" onclick="state.pView='liste';state.sel=null;render()">${ic('i-list')}<span>Liste</span></button>`;
+  e.currentTarget.parentNode.appendChild(m);
+}
+document.addEventListener('click',e=>{const m=document.querySelector('.menu');if(m&&!m.contains(e.target))m.remove()});
+function resForm(r={}){
+  return `<div class="grid2">${RES_FIELDS.map(([k,l,req,cls,type])=>`<div class="field ${cls||''}"><label for="r_${k}">${l}${req?' *':''}</label><input id="r_${k}" name="${k}" type="${type||'text'}" ${type==='number'?'step="any"':''} value="${esc(r[k]??'')}" ${req?'required':''}></div>`).join('')}</div>`;
+}
+function editRes(id){
+  const r=id?D.res.find(x=>x.id===id):{};
+  modal(id?'Modifier la résidence':'Enrichir le patrimoine — nouvelle résidence',resForm(r),async fd=>{
+    const o={};RES_FIELDS.forEach(([k,,,,type])=>{const v=(fd.get(k)||'').trim();o[k]=v===''?null:(type==='number'?Number(v):v)});
+    const q=id?db.from('residences').update(o).eq('id',id).select().single():db.from('residences').insert(o).select().single();
+    const {data,error}=await q;if(error)throw new Error(error.code==='23505'?'Ce code de résidence existe déjà.':error.message);
+    if(id)D.res[D.res.findIndex(x=>x.id===id)]=data;else{D.res.push(data);D.res.sort((a,b)=>a.code.localeCompare(b.code))}
+    state.sel=data.id;toast(id?'Résidence mise à jour':'Résidence créée');render();
+  });
+}
+async function deleteRes(id){
+  const r=D.res.find(x=>x.id===id);
+  if(!confirm(`Supprimer définitivement « ${r.nom} » et ses équipements ?`))return;
+  const {error}=await db.from('residences').delete().eq('id',id);if(error)return fail(error,'Suppression');
+  D.res=D.res.filter(x=>x.id!==id);state.sel=null;toast('Résidence supprimée');render();
+}
+async function saveNotes(id){
+  const notes=$('#notes').value;
+  const {data,error}=await db.from('residences').update({notes}).eq('id',id).select().single();if(error)return fail(error,'Note');
+  D.res[D.res.findIndex(x=>x.id===id)]=data;toast('Note enregistrée');
+}
+async function uploadPhoto(id,file){
+  if(!file)return;loading(true,'Envoi de la photo…');
+  const path=`${id}/${Date.now()}-${file.name.replace(/[^\w.-]/g,'_')}`;
+  const up=await db.storage.from('photos').upload(path,file,{upsert:true});
+  if(up.error){loading(false);return fail(up.error,'Photo')}
+  const url=db.storage.from('photos').getPublicUrl(path).data.publicUrl;
+  const {data,error}=await db.from('residences').update({photo_url:url}).eq('id',id).select().single();
+  loading(false);if(error)return fail(error,'Photo');
+  D.res[D.res.findIndex(x=>x.id===id)]=data;toast('Photo ajoutée');render();
+}
+function exportRes(){
+  csv('residences.csv',filteredRes(),[...RES_FIELDS.map(([k,l])=>[k,l]),[r=>completude(r)+'%','Complétude'],['notes','Notes']]);
+}
+
+/* =====================================================================
+   CALENDRIER (partagé)
+   ===================================================================== */
+function calendar(){
+  const Y=state.calY,M=state.calM;
+  const ev={};const add=(d,t,k)=>{(ev[d]=ev[d]||[]).push([t,k])};
+  D.coll.forEach(c=>{
+    const s=new Date(c.date_debut+'T00:00:00'),e=new Date(c.date_fin+'T00:00:00');
+    if(s.getFullYear()===Y&&s.getMonth()===M)add(s.getDate(),c.titre,'s');
+    if(e.getFullYear()===Y&&e.getMonth()===M)add(e.getDate(),c.titre,'e');
+  });
+  const first=(new Date(Y,M,1).getDay()+6)%7,days=new Date(Y,M+1,0).getDate();
+  let cells='';for(let i=0;i<first;i++)cells+='<div></div>';
+  for(let d=1;d<=days;d++){const l=ev[d]||[];const isT=Y===today.getFullYear()&&M===today.getMonth()&&d===today.getDate();
+    const inner=l.length>2?`<span class="ev ${l[0][1]}" title="${esc(l.map(x=>x[0]).join('\n'))}">${l.length} collectes</span>`:l.map(x=>`<span class="ev ${x[1]}" title="${esc(x[0])}">${esc(x[0])}</span>`).join('');
+    cells+=`<div class="day ${isT?'today':''}"><span class="dn">${d}</span>${inner}</div>`}
+  return `<div class="cal"><div class="ch"><h3>Planification</h3><div class="seg"><button class="on">Mois</button><button onclick="state.calY=${today.getFullYear()};state.calM=${today.getMonth()};render()">Aujourd'hui</button></div></div>
+  <div class="calbox"><div class="calnav"><button aria-label="Mois précédent" onclick="calMove(-1)">‹</button>${MOIS[M][0].toUpperCase()+MOIS[M].slice(1)} ${Y}<button aria-label="Mois suivant" onclick="calMove(1)">›</button></div>
+  <div class="grid7">${['L','M','M','J','V','S','D'].map(d=>`<div class="dw">${d}</div>`).join('')}${cells}</div>
+  <div class="legend"><span><i style="border-color:#22c55e;background:#f0fdf4"></i>Début de collecte</span><span><i style="border-color:#ef4444;background:#fef2f2"></i>Fin de collecte</span></div></div></div>`;
+}
+function calMove(n){let m=state.calM+n,y=state.calY;if(m<0){m=11;y--}if(m>11){m=0;y++}state.calM=m;state.calY=y;render()}
+const ring=(v,label)=>{const r=15,c=2*Math.PI*r;const has=v!==null&&v!==undefined;return `<div><svg class="ring" viewBox="0 0 38 38"><circle cx="19" cy="19" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="3"/>${has&&v>0?`<circle cx="19" cy="19" r="${r}" fill="none" stroke="#F2C040" stroke-width="3" stroke-dasharray="${c*v/100} ${c}" transform="rotate(-90 19 19)" stroke-linecap="round"/>`:''}<text x="19" y="22" text-anchor="middle" font-size="8.5" font-family="Syne,Arial" fill="#111827">${has?v+'%':'NC'}</text></svg><small>${label}</small></div>`};
+
+/* =====================================================================
+   COLLECTES
+   ===================================================================== */
+function collForm(c={}){
+  const d=c.date_debut||iso(today),f=c.date_fin||iso(new Date(today.getTime()+14*864e5));
+  return `<div class="grid2">
+    <div class="field full"><label for="c_t">Titre *</label><input id="c_t" name="titre" required value="${esc(c.titre||'')}"></div>
+    <div class="field"><label for="c_d">Début *</label><input id="c_d" name="date_debut" type="date" required value="${d}"></div>
+    <div class="field"><label for="c_f">Fin *</label><input id="c_f" name="date_fin" type="date" required value="${f}"></div>
+    <div class="field"><label for="c_s">Statut</label><select id="c_s" name="statut">${Object.entries(STAT).map(([k,v])=>`<option value="${k}" ${c.statut===k?'selected':''}>${v[0]}</option>`).join('')}</select></div>
+    <div class="field"><label for="c_n">Nb de logements concernés</label><input id="c_n" name="nb_logements" type="number" min="0" value="${c.nb_logements??0}"></div>
+    <div class="field full"><label for="c_c">Collecteurs (séparés par des virgules)</label><input id="c_c" name="collecteurs" value="${esc((c.collecteurs||[]).join(', '))}"></div>
+    <div class="field"><label for="c_o">Progression obligatoires (%)</label><input id="c_o" name="prog_obligatoires" type="number" min="0" max="100" value="${c.prog_obligatoires??0}"></div>
+    <div class="field"><label for="c_fa">Progression facultatifs (%) — vide = NC</label><input id="c_fa" name="prog_facultatifs" type="number" min="0" max="100" value="${c.prog_facultatifs??''}"></div>
+  </div>`;
+}
+function newCollecte(id){
+  const c=id?D.coll.find(x=>x.id===id):{titre:state.sel?('Collecte — '+(D.res.find(r=>r.id===state.sel)?.nom||'')):''};
+  modal(id?'Modifier la collecte':'Créer une collecte terrain',collForm(c),async fd=>{
+    const o={titre:fd.get('titre').trim(),date_debut:fd.get('date_debut'),date_fin:fd.get('date_fin'),statut:fd.get('statut'),
+      nb_logements:+fd.get('nb_logements')||0,collecteurs:fd.get('collecteurs').split(',').map(s=>s.trim()).filter(Boolean),
+      prog_obligatoires:+fd.get('prog_obligatoires')||0,prog_facultatifs:fd.get('prog_facultatifs')===''?null:+fd.get('prog_facultatifs')};
+    if(o.date_fin<o.date_debut)throw new Error('La date de fin doit suivre la date de début.');
+    const q=id?db.from('collectes').update(o).eq('id',id).select().single():db.from('collectes').insert(o).select().single();
+    const {data,error}=await q;if(error)throw error;
+    if(id)D.coll[D.coll.findIndex(x=>x.id===id)]=data;else D.coll.unshift(data);
+    toast(id?'Collecte mise à jour':'Collecte créée');state.mod='collectes';state.cTab='terrain';go('collectes');
+  },{extra:id?`<button type="button" class="btn danger" style="margin-right:auto" onclick="deleteColl('${id}')">Supprimer</button>`:''});
+}
+async function setStatut(id,statut){
+  const {data,error}=await db.from('collectes').update({statut}).eq('id',id).select().single();if(error)return fail(error,'Statut');
+  D.coll[D.coll.findIndex(x=>x.id===id)]=data;toast('Statut : '+STAT[statut][0]);render();
+}
+async function deleteColl(id){
+  if(!confirm('Supprimer cette collecte ?'))return;
+  const {error}=await db.from('collectes').delete().eq('id',id);if(error)return fail(error,'Suppression');
+  D.coll=D.coll.filter(c=>c.id!==id);closeModal();toast('Collecte supprimée');render();
+}
+async function toggleEq(id,cur){
+  const statut=cur==='present'?'hypothese':'present';
+  const {error}=await db.from('equipements').update({statut}).eq('id',id);if(error)return fail(error,'Équipement');
+  const row=state.eq.rows.find(r=>r.id===id);if(row)row.statut=statut;
+  const e=await db.from('v_etat_collecte').select('*').order('nom');if(!e.error)D.etat=e.data;
+  toast(statut==='present'?'Présence validée':'Repassé en hypothèse');render();
+}
+async function exportEq(){
+  loading(true,'Préparation de l’export…');
+  const all=[];for(let p=0;p<50;p++){const {data,error}=await db.from('v_equipements').select('*').order('res_code').range(p*1000,p*1000+999);if(error){loading(false);return fail(error)}all.push(...data);if(data.length<1000)break}
+  loading(false);
+  csv('equipements.csv',all,[['type_ligne','Type de ligne'],['res_code','RES'],['res_nom','Résidence'],['batiment','BAT'],['entree','ENT'],['niveau','NIV'],['lot','LOT'],['espace','ESP'],['code_objet','OBJ'],['libelle','Libellé'],['statut','Statut']]);
+}
+function viewCollectes(){
+  const t=state.cTab;
+  const acts=`<button class="btn y" onclick="newCollecte()">${ic('i-plus')} Créer une collecte terrain</button>`;
+  const tabs=`<div class="tabs" style="--c:var(--yellow)">${[['terrain','Collectes Terrain'],['data','Collectes Data'],['etat','État de collecte']].map(([k,l])=>`<button class="${t===k?'on':''}" onclick="setCTab('${k}')">${l}</button>`).join('')}</div>`;
+  let body='';
+  if(t==='terrain'){
+    const list=D.coll.filter(c=>!state.cf||c.statut===state.cf);
+    const avg=D.coll.length?Math.round(D.coll.reduce((a,c)=>a+c.prog_obligatoires,0)/D.coll.length):0;
+    const lastEnd=D.coll.map(c=>c.date_fin).sort().pop();
+    const logs=D.coll.reduce((a,c)=>a+(c.nb_logements||0),0);
+    body=`<div class="boxed"><div class="coll"><div>
+      <h3 class="sec">Indicateurs clés</h3>
+      <div class="kpis">
+        <div class="kpi"><small>Nb de collectes</small><b class="num">${D.coll.length}</b>${ic('i-clock')}</div>
+        <div class="kpi"><small>Nb de logements concernés</small><b class="num">${logs.toLocaleString('fr-FR')}</b>${ic('i-home')}</div>
+        <div class="kpi"><small>Progression moyenne</small><b class="num">${avg}%</b>${ic('i-gauge')}</div>
+        <div class="kpi"><small>Date de fin dernière collecte</small><b class="sm num">${fmtD(lastEnd)}</b>${ic('i-cal')}</div>
+      </div>
+      <h3 class="sec">Toutes les collectes (${D.coll.length})</h3>
+      <label class="lab" for="fs">Filtrer par statut</label>
+      <select class="select" id="fs" style="margin-bottom:12px;appearance:none" onchange="state.cf=this.value;render()">
+        <option value="">Tous les statuts</option>${Object.entries(STAT).map(([k,v])=>`<option value="${k}" ${state.cf===k?'selected':''}>${v[0]}</option>`).join('')}</select>
+      <div class="clist">${list.length?list.map(c=>{const s=STAT[c.statut];return `<div class="citem"><div>
+        <div class="t">${esc(c.titre)}<span class="status ${s[2]}"><svg width="11" height="11"><use href="#${s[1]}"/></svg> ${s[0]}</span></div>
+        <div class="meta"><span>Du ${fmtD(c.date_debut)}<br>Au ${fmtD(c.date_fin)}</span><span>${c.collecteurs.length>1?'Collecteurs':'Collecteur'}: ${esc(c.collecteurs.join(', ')||'—')}</span></div>
+        <div class="ctrl"><select aria-label="Changer le statut" onchange="setStatut('${c.id}',this.value)">${Object.entries(STAT).map(([k,v])=>`<option value="${k}" ${c.statut===k?'selected':''}>${v[0]}</option>`).join('')}</select><button class="linkbtn" onclick="newCollecte('${c.id}')">Modifier</button></div></div>
+        <div class="rings">${ring(c.prog_obligatoires,'Obligatoires')}${ring(c.prog_facultatifs,'Facultatifs')}</div></div>`}).join(''):'<div class="empty">Aucune collecte.</div>'}</div>
+    </div>${calendar()}</div></div>`;
+  } else if(t==='data'){
+    const E=state.eq,pages=Math.max(1,Math.ceil(E.count/E.size));
+    const x='<span class="x">✕</span>',d='<span class="d">—</span>';
+    const cell=(r,k)=>r.type_ligne==='Résidence'&&k!=='res_code'?x:(r.type_ligne==='Bâtiment'&&!['res_code','batiment'].includes(k)?x:(r[k]?esc(r[k]):d));
+    const rows=E.rows.map(r=>`<tr><td>${esc(r.type_ligne)}</td>${['res_code','batiment','entree','niveau','lot','espace','code_objet'].map(k=>`<td>${cell(r,k)}</td>`).join('')}<td class="st">${r.type_ligne==='Équipement'?`<button onclick="toggleEq('${r.id}','${r.statut}')" title="Cliquer pour basculer présent / hypothèse"><span class="chip ${r.statut}">${r.statut==='present'?'Présent':'Hypothèse'}</span></button>`:d}</td></tr>`).join('');
+    body=`<div class="boxed">
+      <div class="search">${ic('i-search')}<input id="qd" placeholder="Rechercher (code objet, libellé, code ou nom de résidence)…" value="${esc(E.q)}" onkeydown="if(event.key==='Enter'){state.eq.q=this.value.trim();state.eq.page=0;refreshEq()}"></div>
+      <div class="toolbar">
+        <div><small>Statut</small><select class="select" id="eqs" onchange="state.eq.statut=this.value;state.eq.page=0;refreshEq()"><option value="">Tous</option><option value="present" ${E.statut==='present'?'selected':''}>Présents</option><option value="hypothese" ${E.statut==='hypothese'?'selected':''}>Hypothèses</option></select></div>
+        <div><small>Recherche</small><button class="btn" onclick="state.eq.q=$('#qd').value.trim();state.eq.page=0;refreshEq()">${ic('i-search')} Rechercher</button></div>
+        <div><small>Édition</small><button class="btn" onclick="toast('Cliquez sur un statut pour valider la présence d’un équipement')">${ic('i-pen')} Valider</button></div>
+        <div><small>Rapport</small><button class="btn" onclick="exportEq()">${ic('i-file')} Exporter (CSV)</button></div>
+        <div><small>&nbsp;</small><button class="btn" onclick="state.eq.q='';state.eq.statut='';state.eq.page=0;refreshEq()">${ic('i-reset')} Réinitialiser</button></div>
+      </div>
+      <div class="tblwrap">${E.rows.length?`<table class="tbl num"><thead><tr>${['Type de ligne','RES','BAT','ENT','NIV','LOT','ESP','OBJ','Statut'].map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Aucune ligne.</div>'}</div>
+      <div class="pager"><span>Lignes ${E.count?E.page*E.size+1:0}–${Math.min(E.count,(E.page+1)*E.size)} sur ${E.count.toLocaleString('fr-FR')}</span>
+        <span>Lignes / page <select class="btn" id="pp" onchange="state.eq.size=+this.value;state.eq.page=0;refreshEq()">${[50,100,250].map(n=>`<option ${E.size===n?'selected':''}>${n}</option>`).join('')}</select>
+        <button class="btn" ${E.page<=0?'disabled':''} onclick="state.eq.page--;refreshEq()" aria-label="Page précédente">‹</button> Page ${E.page+1} / ${pages} <button class="btn" ${E.page>=pages-1?'disabled':''} onclick="state.eq.page++;refreshEq()" aria-label="Page suivante">›</button></span></div></div>`;
+  } else {
+    const rows=D.etat.map(r=>{const p=r.total?r.presents/r.total*100:0;return `<tr><td style="font-weight:600">${esc(r.code)}</td><td>${esc(r.nom)} — ${esc(r.adresse||'')}</td><td style="text-align:center"><span class="pct" style="${p>=50?'background:#dbeafe;color:#1d4ed8':''}">${p===0?'0%':p<1?'<1%':p.toFixed(1)+'%'}</span></td><td style="text-align:center">${r.presents}</td><td style="text-align:center">${r.hypotheses}</td><td style="text-align:center">${r.total}</td></tr>`}).join('');
+    body=`<div class="tblwrap" style="max-height:none">${D.etat.length?`<table class="tbl num"><thead><tr><th>Code</th><th>Nom</th><th style="text-align:center;white-space:normal">Part d'équipements présents</th><th style="text-align:center;white-space:normal">Nb d'équipements présents</th><th style="text-align:center;white-space:normal">Nb d'équipements en hypothèse</th><th style="text-align:center;white-space:normal">Nb d'équipements total</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Aucune donnée.</div>'}</div>`;
+  }
+  return head('collectes',acts)+`<div class="pbody">${tabs}${body}</div>`;
+}
+async function setCTab(k){state.cTab=k;if(k==='data')await refreshEq(false);render()}
+async function refreshEq(r=true){loading(true);await loadEq();loading(false);if(r)render()}
+const loadEq=loadEquip;
+
+/* =====================================================================
+   ANALYSES
+   ===================================================================== */
+const REQ_COLS=[['nom','Nom'],['code','Code Groupe'],['ville','Ville'],['agence','Agence'],['secteur','Secteur'],['nature','Nature'],['nb_lots','Lots']];
+function viewAnalyses(){
+  if(state.aView==='req'){
+    const rows=D.res.filter(r=>REQ_COLS.every(([k])=>{const v=state.cfil[k];return !v||String(r[k]??'').toLowerCase().includes(v.toLowerCase())}));
+    return `<div class="phead"><div class="ttl" style="gap:14px"><button class="btn" style="border:0" onclick="state.aView='dash';render()" aria-label="Retour">←</button><b style="font-size:14px;font-weight:600">Requêtes</b></div>
+      <div class="actions"><button class="btn" onclick="csv('requete.csv',window.__req,REQ_COLS)">${ic('i-file')} Exporter</button></div></div>
+      <div class="pbody"><div class="tabs"><button class="on">Spatialités</button><button onclick="state.mod='collectes';state.cTab='data';setCTab('data').then(()=>go('collectes'))">Équipements</button></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px"><button class="btn" onclick="state.cfil={};render()">${ic('i-reset')} Réinitialiser</button></div>
+      <div class="tblwrap"><table class="tbl num"><thead><tr>${REQ_COLS.map(([k,l])=>`<th>${l}<input class="cf" id="cf_${k}" placeholder="Filtrer…" value="${esc(state.cfil[k]||'')}" oninput="state.cfil['${k}']=this.value;renderKeep()"></th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr style="cursor:pointer" onclick="openRes('${r.id}')">${REQ_COLS.map(([k])=>`<td>${esc(r[k]??'-')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="pager" style="flex-direction:column;align-items:flex-start;gap:3px"><span>${rows.length} résultats</span><span style="font-size:9px;color:#6b7280">${D.res.length} résidences chargées depuis la base</span></div></div>`;
+  }
+  const tools=[['i-search','Requêtes','Interrogez vos données de patrimoine','req'],['i-pie','Indicateurs de Performance','Pilotez vos métriques clés et suivez l’évolution de vos performances'],['i-cal',"Plan d'Entretien","Planifiez et suivez les travaux d'entretien"],['i-layers','PSP','Structurez votre plan stratégique patrimonial'],['i-wrench','Maintenance Prédictive','Anticipez les défaillances et suivez vos contrats']];
+  const actifs=D.contrats.filter(c=>c.actif);
+  return head('analyses')+`<div class="pbody"><div class="ana" style="margin-top:20px">
+    <div class="tools"><div class="th"><span>OUTILS</span></div>
+      ${tools.map(t=>`<button class="tool" onclick="${t[3]?"state.aView='req';render()":`toast('${t[1].replace(/'/g,"’")} : module à venir')`}">${ic(t[0])}<span><b>${t[1]}</b><small>${t[2]}</small></span></button>`).join('')}</div>
+    <div class="boxed"><h3 class="sec" style="font-size:15px">Tableau de bord</h3>
+      <div class="dash"><div class="dkpis">
+        <div class="kpi" style="cursor:pointer" onclick="toggleNotifs()"><small>NOTIFICATIONS NON LUES</small><b>${unread()}</b><svg style="color:#374151"><use href="#i-bell"/></svg></div>
+        <div class="kpi" style="cursor:pointer" onclick="go('collectes')"><small>COLLECTES AU TOTAL</small><b class="num">${D.coll.length}</b><svg><use href="#i-clip"/></svg></div>
+        <div class="kpi"><small>RÉSIDENCES</small><b class="num">${D.res.length}</b><svg style="color:var(--blue)"><use href="#i-build"/></svg></div>
+        <div class="kpi"><small>COMPLÉTUDE MOYENNE</small><b class="num">${D.res.length?Math.round(D.res.reduce((a,r)=>a+completude(r),0)/D.res.length):0}%</b><svg style="color:var(--blue)"><use href="#i-list"/></svg></div>
+        <div class="kpi"><small>CONTRATS ACTIFS</small><b>${actifs.length}</b><svg style="color:var(--blue)"><use href="#i-doc"/></svg></div>
+        <div class="kpi"><small>ÉQUIPEMENTS COUVERTS</small><b>${actifs.reduce((a,c)=>a+c.nb_equipements,0)}</b><svg style="color:var(--blue)"><use href="#i-wrench"/></svg></div>
+      </div>${calendar()}</div></div>
+  </div></div>`;
+}
+
+/* =====================================================================
+   MARKETPLACE
+   ===================================================================== */
+function apiChart(){
+  const Y=today.getFullYear(),M=today.getMonth(),n=new Date(Y,M+1,0).getDate();
+  const byDay={};D.appels.forEach(a=>{const d=new Date(a.jour+'T00:00:00');if(d.getFullYear()===Y&&d.getMonth()===M)byDay[d.getDate()]=a.appels});
+  const vals=Array.from({length:n},(_,i)=>byDay[i+1]||0);
+  const total=vals.reduce((a,b)=>a+b,0),worked=vals.filter(v=>v>0).length,avg=worked?Math.round(total/worked):0;
+  const max=Math.max(...vals,1),peakDay=vals.indexOf(max)+1;
+  const W=820,H=230,L=46,B=190,T=24,bw=(W-L-10)/n,y=v=>B-(v/max)*(B-T);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Appels API par jour">`;
+  [0,Math.round(max/2),max].forEach(v=>s+=`<text x="${L-10}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="#6b7280">${v}</text><line x1="${L}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="#f1f2f4"/>`);
+  s+=`<line x1="${L}" y1="${B}" x2="${W-10}" y2="${B}" stroke="#e5e7eb"/>`;
+  vals.forEach((v,i)=>{const x=L+i*bw+bw*.28;if(v)s+=`<rect x="${x}" y="${y(v)}" width="${bw*.44}" height="${B-y(v)}" rx="2" fill="#38B0E6"><title>${i+1}/${M+1} : ${v} appels</title></rect>`;
+    s+=`<text x="${x+bw*.22}" y="${B+16}" text-anchor="middle" font-size="9" fill="#374151">${i+1}</text>`;if(v===max&&max>1)s+=`<text x="${x+bw*.22}" y="${y(v)-6}" text-anchor="middle" font-size="9" fill="#111827" font-weight="600">${v}</text>`});
+  if(avg)s+=`<line x1="${L}" y1="${y(avg)}" x2="${W-10}" y2="${y(avg)}" stroke="#F2C040" stroke-dasharray="3 3"/>`;
+  s+=`<text x="${(W+L)/2}" y="${H-4}" text-anchor="middle" font-size="10" fill="#374151">Jour</text><text transform="translate(14 ${(B+T)/2}) rotate(-90)" text-anchor="middle" font-size="9" fill="#374151">Nombre d'appels</text></svg>`;
+  return {svg:s,avg,total,max:max>1?max:0,peakDay,label:MOIS[M]+' '+Y};
+}
+function viewMarketplace(){
+  const t=state.mTab;
+  const tabs=`<div class="tabs" style="--c:#111827">${[['api','API PilotData'],['conn','Connecteurs externes']].map(([k,l])=>`<button class="${t===k?'on':''}" onclick="state.mTab='${k}';render()">${l}</button>`).join('')}</div>`;
+  let body;
+  if(t==='api'){
+    const c=apiChart(),k=D.cle;
+    const R=k?[['Lecture',k.lecture,'Consulter le patrimoine et les données exposées'],['Mise à jour',k.mise_a_jour,'Modifier les fiches et attributs existants'],['Suppression',k.suppression,'Retirer des éléments du périmètre autorisé'],['Ajout',k.ajout,"Créer de nouveaux éléments via l'API"]]:[];
+    body=k?`<div class="apikey"><span class="k"><svg width="14" height="14"><use href="#i-key"/></svg></span><div><small>Clé API rattachée à votre compte</small><code>${esc(k.prefixe)}••••••••••••</code></div><span class="active" style="${k.active?'':'color:#9ca3af;background:#f3f4f6;border-color:#e5e7eb'}">${k.active?'Active':'Inactive'}</span></div>
+    <h3 class="sec" style="font-size:12.5px;margin-bottom:0">Droits de la clé</h3>
+    <div class="rights">${R.map(r=>`<div class="right ${r[1]?'':'no'}"><div class="rh">${r[0]}<span>${r[1]?'✓ Accordé':'✕ Non accordé'}</span></div><small>${r[2]}</small></div>`).join('')}</div>`:'<div class="empty">Aucune clé API configurée.</div>';
+    body+=`<div class="mstats num"><div><small>Appels ce mois</small><b>${c.total.toLocaleString('fr-FR')}</b></div><div><small>Moyenne / jour ouvré</small><b>${c.avg}</b></div><div><small>Pic journalier</small><b>${c.max}</b>${c.max?`<em>le ${c.peakDay}/${today.getMonth()+1}</em>`:''}</div></div>
+    <div class="chart"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:6px;flex-wrap:wrap;gap:6px">Consommation — ${c.label}<span style="font-size:10px;font-weight:400;color:#374151"><span style="display:inline-block;width:18px;border-top:2px dashed #F2C040;vertical-align:middle;margin-right:5px"></span>Moyenne (${c.avg})</span></div>${c.svg}</div>`;
+  } else {
+    const cats=[...new Set(D.conns.map(c=>c.categorie).filter(Boolean))].sort();
+    const list=D.conns.filter(c=>!state.cat||c.categorie===state.cat);
+    body=`<div class="catbar"><div><label class="lab" for="cat" style="margin-top:0">Catégorie</label><select class="select" id="cat" onchange="state.cat=this.value;render()"><option value="">Toutes les catégories</option>${cats.map(c=>`<option ${state.cat===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div><button class="btn" style="justify-content:flex-start;padding:8px 10px" onclick="state.cat='';render()">${ic('i-reset')} Réinitialiser</button></div>
+    <div class="cons">${list.map(c=>`<div class="conn"><svg width="26" height="26"><use href="#${esc(c.icone||'i-wifi')}"/></svg><b>${esc(c.titre)}</b><small>${esc(c.description)}</small></div>`).join('')||'<div class="empty">Aucun connecteur.</div>'}</div>`;
+  }
+  return head('marketplace')+`<div class="pbody">${tabs}${body}</div>`;
+}
+
+/* =====================================================================
+   ROUTEUR
+   ===================================================================== */
+const VIEWS={patrimoine:viewPatrimoine,collectes:viewCollectes,analyses:viewAnalyses,marketplace:viewMarketplace};
+function go(k){
+  if(!VIEWS[k])k='accueil';else state.mod=k;
+  if(location.hash!=='#'+k)history.pushState(null,'','#'+k);
+  route();
+}
+async function route(){
+  if(!state.user)return renderLogin();
+  const k=location.hash.slice(1);
+  if(VIEWS[k]){state.mod=k;if(k==='collectes'&&state.cTab==='data'&&!state.eq.rows.length)await loadEquip()}
+  render(!VIEWS[k]);
+}
+function render(home){
+  if(!state.user)return renderLogin();
+  const isHome=home===true||!VIEWS[location.hash.slice(1)];
+  $('#login').hidden=true;$('#home').hidden=!isHome;$('#app').hidden=isHome;
+  document.querySelector('.bgcity').style.opacity=isHome?'.95':'.5';
+  if(map&&!isHome&&state.mod!=='patrimoine'){map.remove();map=null}
+  if(isHome){renderHome();return}
+  if(state.mod==='analyses'&&state.aView==='req')window.__req=D.res.filter(r=>REQ_COLS.every(([k])=>{const v=state.cfil[k];return !v||String(r[k]??'').toLowerCase().includes(v.toLowerCase())}));
+  $('#app').innerHTML=shell(VIEWS[state.mod]());
+  if(state.mod==='analyses'&&state.aView==='req')window.__req=D.res.filter(r=>REQ_COLS.every(([k])=>{const v=state.cfil[k];return !v||String(r[k]??'').toLowerCase().includes(v.toLowerCase())}));
+  if(state.mod==='patrimoine'&&!state.sel&&state.pView==='carte')mountMap();
+}
+function renderKeep(){const a=document.activeElement,id=a&&a.id,pos=a&&a.selectionStart;render();if(id){const n=document.getElementById(id);if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}}
+window.addEventListener('popstate',route);
+
+/* ---------------- démarrage ---------------- */
+db.auth.onAuthStateChange((event,session)=>{
+  // pas d'appel Supabase « awaité » directement dans ce callback (recommandation supabase-js)
+  if(event==='PASSWORD_RECOVERY')setTimeout(()=>{openAccount();toast('Choisissez un nouveau mot de passe')},600);
+  if(session?.user&&!state.user){state.user=session.user;setTimeout(()=>startSession(session.user),0);return}
+  if(session?.user&&state.user){state.user=session.user;return}
+  if(!session){
+    const was=!!state.user;state.user=null;
+    Object.keys(D).forEach(k=>D[k]=Array.isArray(D[k])?[]:null);state.eq.rows=[];
+    if(map){map.remove();map=null}closeModal();$('#drawer')?.remove();renderLogin();
+  }
+});
+
+</script>
+</body>
+</html>
